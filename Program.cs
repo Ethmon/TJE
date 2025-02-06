@@ -208,7 +208,7 @@ namespace Text_editor_E
                 Width = Dim.Fill(),
                 Height = Dim.Fill(),
                 ReadOnly = false,
-                CanFocus = true,
+                CanFocus = false,
 
             };
             textView.DesiredCursorVisibility = CursorVisibility.Invisible;
@@ -269,6 +269,7 @@ namespace Text_editor_E
                         pos--;
                     }
                     break;
+                
                 case Key.Delete:
                     if (pos < charList.Count - 1)
                     {
@@ -284,7 +285,7 @@ namespace Text_editor_E
                         pos--;
                     break;
                 case Key.CursorUp:
-                    pos -= (LastReturnAway(pos)>(LastReturnAway(LastReturnAway(pos))) ?(pos-LastReturnAway(pos)>0) ? LastReturnAway(pos) : pos : (pos-LastReturnAway(LastReturnAway(pos))>0) ? LastReturnAway(LastReturnAway(pos)) : 0 ) - 1;
+                    pos -= (LastReturnAway(pos)>(LastReturnAway(pos - LastReturnAway(pos)-1)) ?(pos-LastReturnAway(pos)>0) ? LastReturnAway(pos) + 1 : pos : (pos-LastReturnAway(pos - LastReturnAway(pos)-1)>0) ? LastReturnAway(pos - LastReturnAway(pos) -1)  + 1: 0 ) ;
                     break;
                 case Key.Esc:
                     HandleEscapeCommand(textView);
@@ -300,6 +301,8 @@ namespace Text_editor_E
                     pos = 0;
                     break;
                 default:
+                    if (args.KeyEvent.IsShift || args.KeyEvent.IsCtrl || args.KeyEvent.IsAlt)
+                        break;
                     char pressedChar = (char)args.KeyEvent.KeyValue;
                     charList.Insert(pos, pressedChar);
                     pos++;
