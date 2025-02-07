@@ -7,6 +7,7 @@ using System.IO;
 using System.Text.Json;
 using Terminal.Gui;
 using static Terminal.Gui.View;
+using System.Globalization;
 
 namespace Text_editor_E
 {
@@ -133,6 +134,7 @@ namespace Text_editor_E
         List<char> charList;
         List<char> charListVis;
         int pos = 0;
+        int SartSellection = -1;
         bool runner = true;
         string file_name;
         bool new_file;
@@ -258,6 +260,21 @@ namespace Text_editor_E
             }
             return count;
         }
+        public int NextReturnAway(int o)
+        {
+            int i = int.Clamp(o, 0, charList.Count() - 1);
+            int count = 0;
+            while (i < charList.Count())
+            {
+                if (charList[i] != '\n')
+                {
+                    count++;
+                }
+                else break;
+                i++;
+            }
+            return count;
+        }
         private void HandleKeyPress(KeyEventEventArgs args, TextView textView)
         {
             switch (args.KeyEvent.Key)
@@ -276,16 +293,54 @@ namespace Text_editor_E
                         charList.RemoveAt(pos);
                     }
                     break;
-                case Key.CursorRight:
+                case Key.CursorRight or Key.ShiftMask | Key.CursorRight:
                     if (pos < charList.Count)
                         pos++;
+                    if (args.KeyEvent.IsShift)
+                    {
+                        if (SartSellection == -1)
+                        {
+                            SartSellection = pos - 1;
+                        }
+                    }
+                    else
+                    SartSellection = -1;
                     break;
-                case Key.CursorLeft:
+                case Key.CursorLeft or Key.ShiftMask | Key.CursorLeft:
                     if (pos > 0)
                         pos--;
+                    if (args.KeyEvent.IsShift)
+                    {
+                        if (SartSellection == -1)
+                        {
+                            SartSellection = pos + 1;
+                        }
+                    }
+                    else
+                        SartSellection = -1;
+                    break;
+                case Key.CtrlMask | Key.C:
+                    if (pos > SartSellection)
+                    {
+                        string selected = string.Join("", charList.GetRange(SartSellection, pos - SartSellection));
+                        Clipboard.Contents = selected;
+                    }
+                    else
+                    {
+                        string selected = string.Join("", charList.GetRange(pos, SartSellection - pos));
+                        Clipboard.Contents = selected;
+                    }
                     break;
                 case Key.CursorUp:
                     pos -= (LastReturnAway(pos)>(LastReturnAway(pos - LastReturnAway(pos)-1)) ?(pos-LastReturnAway(pos)>0) ? LastReturnAway(pos) + 1 : pos : (pos-LastReturnAway(pos - LastReturnAway(pos)-1)>0) ? LastReturnAway(pos - LastReturnAway(pos) -1)  + 1: 0 ) ;
+                    SartSellection = -1;
+                    break;
+                case Key.CursorDown:
+                    int len = LastReturnAway(pos);
+                    pos += NextReturnAway(pos)+1;
+                    len = int.Clamp(len, 0, NextReturnAway(pos));
+                    pos += len - 1;
+                    SartSellection = -1;
                     break;
                 case Key.Esc:
                     HandleEscapeCommand(textView);
@@ -301,7 +356,7 @@ namespace Text_editor_E
                     pos = 0;
                     break;
                 default:
-                    if (args.KeyEvent.IsShift || args.KeyEvent.IsCtrl || args.KeyEvent.IsAlt)
+                    if ((args.KeyEvent.IsShift || args.KeyEvent.IsCtrl || args.KeyEvent.IsAlt))
                         break;
                     char pressedChar = (char)args.KeyEvent.KeyValue;
                     charList.Insert(pos, pressedChar);
