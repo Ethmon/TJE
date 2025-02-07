@@ -293,7 +293,7 @@ namespace Text_editor_E
                         charList.RemoveAt(pos);
                     }
                     break;
-                case Key.CursorRight or Key.ShiftMask | Key.CursorRight:
+                case Key.CursorRight or (Key.ShiftMask | Key.CursorRight):
                     if (pos < charList.Count)
                         pos++;
                     if (args.KeyEvent.IsShift)
@@ -306,7 +306,7 @@ namespace Text_editor_E
                     else
                     SartSellection = -1;
                     break;
-                case Key.CursorLeft or Key.ShiftMask | Key.CursorLeft:
+                case Key.CursorLeft or (Key.ShiftMask | Key.CursorLeft):
                     if (pos > 0)
                         pos--;
                     if (args.KeyEvent.IsShift)
@@ -356,12 +356,31 @@ namespace Text_editor_E
                     pos = 0;
                     break;
                 default:
-                    if ((args.KeyEvent.IsShift || args.KeyEvent.IsCtrl || args.KeyEvent.IsAlt))
+                    bool pri = true;
+                    if (args.KeyEvent.IsCtrl || args.KeyEvent.IsAlt)
                         break;
+
                     char pressedChar = (char)args.KeyEvent.KeyValue;
+
+                    if (args.KeyEvent.IsShift)
+                    {
+                        if (char.IsLetter(pressedChar))
+                        {
+                            // Convert lowercase letters to uppercase
+                            pressedChar = char.ToUpper(pressedChar);
+                        }
+                        else
+                        {
+                            if (args.KeyEvent.IsShift && args.KeyEvent.Key == Key.ShiftMask)
+                                pri = false;
+                        }
+                    }
+                    if (pri) { 
                     charList.Insert(pos, pressedChar);
                     pos++;
+                        }
                     break;
+
             }
             textView.CursorPosition = new Point(0, FindPrevReturns());
             
