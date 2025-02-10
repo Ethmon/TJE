@@ -32,18 +32,22 @@ namespace Text_editor_E
                             {
                                 break;
                             }
-                            text_editor text_editor = new text_editor("", name + ".txt", true);
+                            text_editor text_editor = new text_editor(" ", (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0", "") + name, true);
                             text_editor.Run(mode);
                         }
                         else if (text == "inside")
                         {
                             string name = Console.ReadLine();
+                            if (name == "local")
+                            {
+                                name = (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0","") + Console.ReadLine();
+                            }
                             if (name == "/n/")
                             {
                                 break;
                             }
                             text = File.ReadAllText(name);
-                            text_editor text_editor = new text_editor(text, name, true);
+                            text_editor text_editor = new text_editor(" "+text, name, true);
                             text_editor.Run(mode);
                         }
                         else if (text == "path")
@@ -133,7 +137,7 @@ namespace Text_editor_E
         string full_text;
         List<char> charList;
         List<char> charListVis;
-        int pos = 0;
+        int pos = 1;
         int SartSellection = -1;
         bool runner = true;
         string file_name;
@@ -280,7 +284,7 @@ namespace Text_editor_E
             switch (args.KeyEvent.Key)
             {
                 case Key.Backspace:
-                    if (pos > 0)
+                    if (pos > 1)
                     {
                         charList.RemoveAt(pos - 1);
                         pos--;
@@ -382,6 +386,7 @@ namespace Text_editor_E
                     break;
 
             }
+            pos = int.Clamp(pos, 1, charList.Count);
             textView.CursorPosition = new Point(0, FindPrevReturns());
             
             UpdateTextView(textView);
@@ -398,7 +403,7 @@ namespace Text_editor_E
             {
                 string charString = string.Join("", charList);
                 string filePath = new_file ? file_name : (MessageBox.Query("File Name", "Enter file name:", "default") + "." + file_type);
-                File.WriteAllText(filePath, charString);
+                File.WriteAllText(filePath, charString.Substring(1));
             }
             else if (input == 2)
             {
@@ -415,7 +420,7 @@ namespace Text_editor_E
             {
                 string charString = string.Join("", charList);
                 string filePath = new_file ? file_name : (MessageBox.Query("File Name", "Enter file name:", "default") + "." + file_type);
-                File.WriteAllText(filePath, charString);
+                File.WriteAllText(filePath, charString.Substring(1));
                 Application.RequestStop();
                 Application.Shutdown();
                 Console.Clear();
