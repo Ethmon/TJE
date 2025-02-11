@@ -32,15 +32,20 @@ namespace Text_editor_E
                             {
                                 break;
                             }
-                            text_editor text_editor = new text_editor(" ", (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0", "") + name, true);
+                            text_editor text_editor = new text_editor(" ", (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0", "Local_files\\") + name, true);
                             text_editor.Run(mode);
+                        }
+                        else if (text == "local")
+                        {
+                            string allNames = string.Join("\n",Directory.EnumerateFiles((Directory.GetCurrentDirectory().Replace("bin\\Release\\net8.0", "Local_files\\"))));
+                            Console.WriteLine(allNames);
                         }
                         else if (text == "inside")
                         {
                             string name = Console.ReadLine();
                             if (name == "local")
                             {
-                                name = (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0","") + Console.ReadLine();
+                                name = (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0", "Local_files\\") + Console.ReadLine();
                             }
                             if (name == "/n/")
                             {
@@ -142,7 +147,8 @@ namespace Text_editor_E
         bool runner = true;
         string file_name;
         bool new_file;
-        
+        int scroll = 0;
+        int default_scroll = 4;
         string file_type = "txt";
         Modes modes = new Modes();
         public text_editor(string text, string file_name, bool new_file)
@@ -281,6 +287,7 @@ namespace Text_editor_E
         }
         private void HandleKeyPress(KeyEventEventArgs args, TextView textView)
         {
+            bool camMove = false;
             switch (args.KeyEvent.Key)
             {
                 case Key.Backspace:
@@ -339,6 +346,10 @@ namespace Text_editor_E
                     pos -= (LastReturnAway(pos)>(LastReturnAway(pos - LastReturnAway(pos)-1)) ?(pos-LastReturnAway(pos)>0) ? LastReturnAway(pos) + 1 : pos : (pos-LastReturnAway(pos - LastReturnAway(pos)-1)>0) ? LastReturnAway(pos - LastReturnAway(pos) -1)  + 1: 0 ) ;
                     SartSellection = -1;
                     break;
+                case Key.AltMask | Key.CursorUp:
+                    scroll++;
+                    camMove = true;
+                    break;
                 case Key.CursorDown:
                     int len = LastReturnAway(pos);
                     pos += NextReturnAway(pos)+1;
@@ -346,8 +357,13 @@ namespace Text_editor_E
                     pos += len - 1;
                     SartSellection = -1;
                     break;
+                case Key.AltMask | Key.CursorDown:
+                    scroll--;
+                    camMove = true;
+                    break;
                 case Key.Esc:
                     HandleEscapeCommand(textView);
+                    camMove = true;
                     break;
                 case Key.Enter:
                     charList.Insert(pos, '\n');
@@ -388,16 +404,16 @@ namespace Text_editor_E
             }
             pos = int.Clamp(pos, 1, charList.Count);
             textView.CursorPosition = new Point(0, FindPrevReturns());
-            
+            if(!camMove) scroll = 0;
             UpdateTextView(textView);
-            textView.ScrollTo(FindPrevReturns()-4);
+            textView.ScrollTo(FindPrevReturns()-(default_scroll+scroll));
             Application.Refresh();
-            textView.ScrollTo(FindPrevReturns() - 4);
+            textView.ScrollTo(FindPrevReturns() - (default_scroll+scroll));
         }
 
         private void HandleEscapeCommand(TextView textView)
         {
-            int input = MessageBox.Query("Command", "Enter command:", "quit", "save", "type", "S&Q", "help");
+            int input = MessageBox.Query("Command", "Enter command:", "quit", "save", "type", "S&Q", "help","Defaul Scroll");
 
             if (input == 1)
             {
@@ -428,6 +444,60 @@ namespace Text_editor_E
             else if (input == 4)
             {
                 MessageBox.Query("Help", "quit\nsave\nS&Q", "OK");
+            }
+            else if (input == 5)
+            {
+                var dialog = new Dialog("Scroll Amount", 60, 10);
+
+                var label = new Label("Enter scroll amount:")
+                {
+                    X = 1,
+                    Y = 1,
+                };
+                dialog.Add(label);
+
+                var textField = new TextField("")
+                {
+                    X = Pos.Right(label) + 1,
+                    Y = Pos.Top(label),
+                    Width = 40,
+                };
+                dialog.Add(textField);
+
+                var okButton = new Button("Ok")
+                {
+                    X = 20,
+                    Y = 4,
+                    IsDefault = true,
+                };
+                dialog.AddButton(okButton);
+
+                var cancelButton = new Button("Cancel")
+                {
+                    X = Pos.Right(okButton) + 2,
+                    Y = 4,
+                };
+                dialog.AddButton(cancelButton);
+
+                okButton.Clicked += () =>
+                {
+                    if (int.TryParse(textField.Text.ToString(), out int scrollAmount))
+                    {
+                        default_scroll = scrollAmount;
+                        Application.RequestStop();
+                    }
+                    else
+                    {
+                        MessageBox.ErrorQuery(50, 7, "Error", "Invalid number entered", "Ok");
+                    }
+                };
+
+                cancelButton.Clicked += () =>
+                {
+                    Application.RequestStop();
+                };
+
+                Application.Run(dialog);
             }
         }
 
