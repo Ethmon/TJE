@@ -8,6 +8,7 @@ using System.Text.Json;
 using Terminal.Gui;
 using static Terminal.Gui.View;
 using System.Globalization;
+using System.IO.Pipes;
 
 namespace Text_editor_E
 {
@@ -32,12 +33,12 @@ namespace Text_editor_E
                             {
                                 break;
                             }
-                            text_editor text_editor = new text_editor(" ", (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0", "Local_files\\") + name, true);
+                            text_editor text_editor = new text_editor(" ", (Directory.GetCurrentDirectory()).Replace("bin\\Debug\\net8.0", "Local_files\\") + name, true);
                             text_editor.Run(mode);
                         }
                         else if (text == "local")
                         {
-                            string allNames = string.Join("\n",Directory.EnumerateFiles((Directory.GetCurrentDirectory().Replace("bin\\Release\\net8.0", "Local_files\\"))));
+                            string allNames = string.Join("\n",Directory.EnumerateFiles((Directory.GetCurrentDirectory().Replace("bin\\Debug\\net8.0", "Local_files\\"))));
                             Console.WriteLine(allNames);
                         }
                         else if (text == "inside")
@@ -129,6 +130,105 @@ namespace Text_editor_E
     }
 
 
+
+
+
+    public class colordString
+    {
+        string text;
+        Terminal.Gui.Color color;
+        public colordString(string text, Terminal.Gui.Color color)
+        {
+            this.text = text;
+            this.color = color;
+        }
+        public string getText()
+        {
+            return text;
+        }
+        public Terminal.Gui.Color getColor()
+        {
+            return color;
+        }
+    }
+
+    public class ColordTextView : TextView
+    {
+
+        public List<List<colordString>> sections;
+        public ColordTextView(colordString text,int x, int y, int width, int height, bool readOnly, bool canFoucus)
+        {
+            sections.Add(new List<colordString> { text });
+            X = x;
+            Y = y;
+            if(width == -1 || height == -1)
+            {
+                Width = Dim.Fill();
+                Height = Dim.Fill();
+            }
+            else
+            {
+                Width = width;
+                Height = height;
+            }
+            ReadOnly = readOnly;
+            CanFocus = canFoucus;
+        }   
+        public void AddText(colordString text)
+        {
+            sections[sections.Count()-1].Add(text);
+        }
+        public void returnLine()
+        {
+            sections.Add(new List<colordString>());
+        }
+        public void AddText(string text)
+        {
+            sections[sections.Count() - 1].Add(new colordString(text, Terminal.Gui.Color.Black));
+        }
+        public override void Redraw(Rect rect)
+        {
+            int posx = rect.X;
+            int posy = rect.Y;
+            foreach (List<colordString> line in sections)
+            {
+                foreach (colordString section in line)
+                {
+                    Terminal.Gui.Color color = section.getColor();
+                    string text = section.getText();
+                    foreach (char c in text)
+                    {
+                        if (posx >= rect.Width + rect.X)
+                        {
+                            posx = rect.X;
+                            posy++;
+                        }
+                        if (posy >= rect.Height + rect.Y)
+                        {
+                            break;
+                        }
+                        Move(posx, posy);
+                        Driver.SetAttribute(new Terminal.Gui.Attribute(color, Color.Black));
+                        Driver.AddRune(c);
+                        posx++;
+                    }
+                }
+                posy++;
+                posx = rect.X;
+            }
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
     
     public class text_editor
     {
@@ -213,16 +313,10 @@ namespace Text_editor_E
             };
             
             // Display area for text
-            var textView = new TextView()
-            {
-                X = 1,
-                Y = 1,
-                Width = Dim.Fill(),
-                Height = Dim.Fill(),
-                ReadOnly = false,
-                CanFocus = false,
 
-            };
+
+
+            ColordTextView textView = new ColordTextView(new colordString(" ", Terminal.Gui.Color.Black), 1, 1, -1, -1, false, false);
             textView.DesiredCursorVisibility = CursorVisibility.Invisible;
             textView.CursorPosition = new Point(0, 0);
             
