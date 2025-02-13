@@ -19,7 +19,7 @@ namespace Text_editor_E
 
             try
             {
-                Dictionary<string, ConsoleColor> mode = new Dictionary<string, ConsoleColor>();
+                Dictionary<string, Terminal.Gui.Color> mode = new Dictionary<string, Terminal.Gui.Color>();
                 while (true)
                 {
                     string text = Console.ReadLine();
@@ -33,12 +33,12 @@ namespace Text_editor_E
                             {
                                 break;
                             }
-                            text_editor text_editor = new text_editor(" ", (Directory.GetCurrentDirectory()).Replace("bin\\Debug\\net8.0", "Local_files\\") + name, true);
+                            text_editor text_editor = new text_editor(" ", (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0", "Local_files\\") + name, true);
                             text_editor.Run(mode);
                         }
                         else if (text == "local")
                         {
-                            string allNames = string.Join("\n",Directory.EnumerateFiles((Directory.GetCurrentDirectory().Replace("bin\\Debug\\net8.0", "Local_files\\"))));
+                            string allNames = string.Join("\n",Directory.EnumerateFiles((Directory.GetCurrentDirectory().Replace("bin\\Release\\net8.0", "Local_files\\"))));
                             Console.WriteLine(allNames);
                         }
                         else if (text == "inside")
@@ -96,14 +96,14 @@ namespace Text_editor_E
                         }
                         else if (text == "N1")
                         {
-                            mode = new Dictionary<string, ConsoleColor>();
+                            mode = new Dictionary<string, Terminal.Gui.Color>();
                         }
                         else if (text == "end")
                         {
                             break;
                         }
                     }
-                    catch { Console.WriteLine("ERROR"); }
+                    catch(Exception e) { Console.WriteLine(e); }
                 }
 
 
@@ -113,18 +113,27 @@ namespace Text_editor_E
                 Console.WriteLine(e);
             }
         }
-        static Dictionary<string, ConsoleColor> LoadDictionary(string filePath)
+        static Dictionary<string, Terminal.Gui.Color> LoadDictionary(string filePath)
         {
             try
             {
                 string json = File.ReadAllText(text_editor.getPath()+filePath);
-                return JsonSerializer.Deserialize<Dictionary<string, ConsoleColor>>(json);
+                return ParseColorDictionary(JsonSerializer.Deserialize<Dictionary<string, int>>(json));
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
             }
             return null;
+        }
+        static Dictionary<string,Terminal.Gui.Color> ParseColorDictionary(Dictionary<string, int> input)
+        {
+            Dictionary<string, Terminal.Gui.Color> output = new Dictionary<string, Terminal.Gui.Color>();
+            foreach (KeyValuePair<string, int> entry in input)
+            {
+                output.Add(entry.Key, (Terminal.Gui.Color)entry.Value);
+            }
+            return output;
         }
 
     }
@@ -154,8 +163,8 @@ namespace Text_editor_E
 
     public class ColordTextView : TextView
     {
-
-        public List<List<colordString>> sections;
+        int topy = -1;
+        public List<List<colordString>> sections = new List<List<colordString>>();
         public ColordTextView(colordString text,int x, int y, int width, int height, bool readOnly, bool canFoucus)
         {
             sections.Add(new List<colordString> { text });
@@ -173,7 +182,13 @@ namespace Text_editor_E
             }
             ReadOnly = readOnly;
             CanFocus = canFoucus;
-        }   
+            
+            
+        }
+        public void ClearText()
+        {
+            sections = new List<List<colordString>>() { new List<colordString>() { new colordString(" ", Terminal.Gui.Color.Black) } };
+        }
         public void AddText(colordString text)
         {
             sections[sections.Count()-1].Add(text);
@@ -188,35 +203,76 @@ namespace Text_editor_E
         }
         public override void Redraw(Rect rect)
         {
-            int posx = rect.X;
-            int posy = rect.Y;
+            Driver.SetAttribute(new Terminal.Gui.Attribute(Color.Black, Color.Gray)); // Set default background
+            base.Redraw(rect);
+            Clear(rect);
+
+            int posx = Bounds.X;
+            int posy = Bounds.Y;
+
+            // Iterate over the lines stored in sections
             foreach (List<colordString> line in sections)
             {
+                int lineStartX = posx; // Store starting position to fill extra spaces later
+
                 foreach (colordString section in line)
                 {
                     Terminal.Gui.Color color = section.getColor();
                     string text = section.getText();
+
+                    Driver.SetAttribute(new Terminal.Gui.Attribute(color, Color.Gray));
+
                     foreach (char c in text)
                     {
-                        if (posx >= rect.Width + rect.X)
+                        if (posx >= Bounds.Width + Bounds.X)
                         {
-                            posx = rect.X;
+                            // Move to the next line when reaching the width
+                            posx = Bounds.X + 4;
                             posy++;
                         }
-                        if (posy >= rect.Height + rect.Y)
+                        if (posy >= Bounds.Height + Bounds.Y)
                         {
-                            break;
+                            return; // Stop drawing if out of bounds
                         }
+                        if(c == '\n')
+                        {
+                            continue;
+                        }
+                        if(c == '\r')
+                        {
+                            continue;
+                        }
+
                         Move(posx, posy);
-                        Driver.SetAttribute(new Terminal.Gui.Attribute(color, Color.Black));
                         Driver.AddRune(c);
                         posx++;
                     }
                 }
+
+                // Fill remaining space on the line with spaces to overwrite old content
+                while (posx < Bounds.Width + Bounds.X)
+                {
+                    Move(posx, posy);
+                    Driver.AddRune(' '); // Overwrite with spaces
+                    posx++;
+                }
+
+                posy++; // Move to next line
+                posx = Bounds.X; // Reset X position
+            }
+
+            // Fill remaining lines with blank spaces to ensure full overwrite
+            while (posy < Bounds.Height + Bounds.Y)
+            {
+                Move(Bounds.X, posy);
+                for (int i = 0; i < Bounds.Width; i++)
+                {
+                    Driver.AddRune(' ');
+                }
                 posy++;
-                posx = rect.X;
             }
         }
+
     }
 
 
@@ -229,19 +285,20 @@ namespace Text_editor_E
 
 
 
-    
+
     public class text_editor
     {
         public static string getPath()
         {
             string aa = System.IO.Directory.GetCurrentDirectory();
-            aa = aa.Replace("TJE\\bin\\Debug\\net8.0", "TJE\\");
+            aa = aa.Replace("TJE\\bin\\Release\\net8.0", "TJE\\");
             return aa;
         }
 
         string full_text;
         List<char> charList;
         List<char> charListVis;
+
         int pos = 1;
         int SartSellection = -1;
         bool runner = true;
@@ -250,6 +307,7 @@ namespace Text_editor_E
         int scroll = 0;
         int default_scroll = 4;
         string file_type = "txt";
+        Dictionary<string,Terminal.Gui.Color> Syntax = new Dictionary<string, Terminal.Gui.Color>();
         Modes modes = new Modes();
         public text_editor(string text, string file_name, bool new_file)
         {
@@ -288,6 +346,7 @@ namespace Text_editor_E
                 Y = 1,
                 Width = Dim.Fill(),
                 Height = Dim.Fill()
+                
             };
             var text = CreateNonEditableTextField("This is a non-editable text field.", 0, 0, 40, 1);
             win.Add(text);
@@ -298,7 +357,7 @@ namespace Text_editor_E
             return new Object[] { top, win, text };
         }
 
-        public void Run(Dictionary<string, ConsoleColor> mode)
+        public void Run(Dictionary<string, Terminal.Gui.Color> mode)
         {
             Application.Init();
             var top = Application.Top;
@@ -309,8 +368,12 @@ namespace Text_editor_E
                 X = 0,
                 Y = 1,
                 Width = Dim.Fill(),
-                Height = Dim.Fill()
+                Height = Dim.Fill(),
+            
             };
+            win.Border.Background = Color.White;
+            win.Border.BorderBrush = Color.White;
+            
             
             // Display area for text
 
@@ -379,7 +442,7 @@ namespace Text_editor_E
             }
             return count;
         }
-        private void HandleKeyPress(KeyEventEventArgs args, TextView textView)
+        private void HandleKeyPress(KeyEventEventArgs args, ColordTextView textView)
         {
             bool camMove = false;
             switch (args.KeyEvent.Key)
@@ -499,10 +562,12 @@ namespace Text_editor_E
             pos = int.Clamp(pos, 1, charList.Count);
             textView.CursorPosition = new Point(0, FindPrevReturns());
             if(!camMove) scroll = 0;
+            textView.ClearText();
             UpdateTextView(textView);
             textView.ScrollTo(FindPrevReturns()-(default_scroll+scroll));
             Application.Refresh();
             textView.ScrollTo(FindPrevReturns() - (default_scroll+scroll));
+            
         }
 
         private void HandleEscapeCommand(TextView textView)
@@ -595,8 +660,9 @@ namespace Text_editor_E
             }
         }
 
-        private void UpdateTextView(TextView textView)
+        private void UpdateTextView(ColordTextView textView)
         {
+
             try
             {
                 int i, k = 0;
@@ -620,7 +686,26 @@ namespace Text_editor_E
                 }
             }
             catch { }
-            textView.Text = string.Join("", charListVis);
+            string b = string.Join("", charListVis);
+            List<string> before = Modes.Tokenizer(b);
+            for(int i = 0; i < before.Count; i++)
+            {
+                if (before[i] == "\n")
+                {
+                    textView.returnLine();
+                }
+                else
+                {
+                    if (Syntax.TryGetValue(before[i], out Terminal.Gui.Color nnn))
+                    {
+                        textView.AddText(new colordString(before[i], nnn));
+                    }
+                    else
+                        textView.AddText(before[i]);
+                }
+                if (i != before.Count - 1)
+                    textView.AddText(" ");
+            }
             
         }
 
@@ -657,13 +742,31 @@ namespace Text_editor_E
                 Console.Out.Flush();
 
             }
-            public List<string> Tokenizer(string input)
+            public static List<string> Tokenizer(string input)
             {
                 List<string> words = new List<string>();
 
-                string[] lines = input.Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                List<string> lines = new List<string>() { "" };
+
+                for(int i = 0;i<input.Length;i++)
+                {
+                    if (input[i] == '\n')
+                    {
+                        lines.Add(" ");
+                    }
+                    else
+                        lines[lines.Count() - 1] += input[i];
+                }
+
+
+
                 for (int i = 0; i < lines.Count(); i++)
                 {
+                    if (lines[i] == " ")
+                    {
+                        words.Add("\n");
+                        continue;
+                    }
                     string[] tokens = lines[i].Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     foreach (string line in tokens)
                     {
