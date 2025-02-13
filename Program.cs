@@ -147,6 +147,7 @@ namespace Text_editor_E
                 11 => Terminal.Gui.Color.Brown,
                 12 => Terminal.Gui.Color.Red,
                 13 => Terminal.Gui.Color.BrightYellow,
+                
                 _ => Terminal.Gui.Color.Black
             };
         }
@@ -179,6 +180,7 @@ namespace Text_editor_E
     public class ColordTextView : TextView
     {
         int topy = -1;
+        public int scroll = 0;
         public List<List<colordString>> sections = new List<List<colordString>>();
         public ColordTextView(colordString text,int x, int y, int width, int height, bool readOnly, bool canFoucus)
         {
@@ -224,14 +226,19 @@ namespace Text_editor_E
 
             int posx = Bounds.X;
             int posy = Bounds.Y;
-
+            int count = 0; ;
             // Iterate over the lines stored in sections
             foreach (List<colordString> line in sections)
             {
                 int lineStartX = posx; // Store starting position to fill extra spaces later
-
+                if (count < scroll)
+                {
+                    count++;
+                    continue;
+                }
                 foreach (colordString section in line)
                 {
+                    
                     Terminal.Gui.Color color = section.getColor();
                     string text = section.getText();
 
@@ -585,9 +592,9 @@ namespace Text_editor_E
             if(!camMove) scroll = 0;
             textView.ClearText();
             UpdateTextView(textView);
-            textView.ScrollTo(FindPrevReturns()-(default_scroll+scroll));
+            textView.scroll = (FindPrevReturns()-(default_scroll+scroll));
             Application.Refresh();
-            textView.ScrollTo(FindPrevReturns() - (default_scroll+scroll));
+            textView.scroll = (FindPrevReturns() - (default_scroll+scroll));
             
         }
 
@@ -720,6 +727,10 @@ namespace Text_editor_E
                     if (Syntax.TryGetValue(RemoveWhiteSpace(before[i]), out Terminal.Gui.Color nnn))
                     {
                         textView.AddText(new colordString(before[i], nnn));
+                    }
+                    else if (Double.TryParse(before[i],out double nnnn))
+                    {
+                        textView.AddText(new colordString(before[i], (Syntax.TryGetValue(RemoveWhiteSpace("#NUM#"), out Terminal.Gui.Color nnnnn)) ? nnnnn : Terminal.Gui.Color.Black));
                     }
                     else
                         textView.AddText(before[i]);
