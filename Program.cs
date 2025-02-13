@@ -33,7 +33,7 @@ namespace Text_editor_E
                             {
                                 break;
                             }
-                            text_editor text_editor = new text_editor(" ", (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0", "Local_files\\") + name, true);
+                            text_editor text_editor = new text_editor(" ", (Directory.GetCurrentDirectory()).Replace("bin\\Release\\net8.0", "Local_files\\") + name, true,mode);
                             text_editor.Run(mode);
                         }
                         else if (text == "local")
@@ -53,7 +53,7 @@ namespace Text_editor_E
                                 break;
                             }
                             text = File.ReadAllText(name);
-                            text_editor text_editor = new text_editor(" "+text, name, true);
+                            text_editor text_editor = new text_editor(" "+text, name, true,mode);
                             text_editor.Run(mode);
                         }
                         else if (text == "path")
@@ -66,7 +66,7 @@ namespace Text_editor_E
                                     break;
                                 }
                                 text = streamReader.ReadToEnd();
-                                text_editor text_editor = new text_editor(text, "", false);
+                                text_editor text_editor = new text_editor(text, "", false, mode);
                                 text_editor.Run(mode);
 
                             }
@@ -126,14 +126,29 @@ namespace Text_editor_E
             }
             return null;
         }
-        static Dictionary<string,Terminal.Gui.Color> ParseColorDictionary(Dictionary<string, int> input)
+        static Dictionary<string, Terminal.Gui.Color> ParseColorDictionary(Dictionary<string, int> input)
         {
             Dictionary<string, Terminal.Gui.Color> output = new Dictionary<string, Terminal.Gui.Color>();
             foreach (KeyValuePair<string, int> entry in input)
             {
-                output.Add(entry.Key, (Terminal.Gui.Color)entry.Value);
+                output.Add(entry.Key, GetColorFromInt(entry.Value));
             }
             return output;
+        }
+        static Terminal.Gui.Color GetColorFromInt(int colorCode)
+        {
+            return colorCode switch
+            {
+                2 => Terminal.Gui.Color.Blue,
+                4 => Terminal.Gui.Color.Green,
+                6 => Terminal.Gui.Color.Magenta,
+                9 => Terminal.Gui.Color.Cyan,
+                10 => Terminal.Gui.Color.BrightRed,
+                11 => Terminal.Gui.Color.Brown,
+                12 => Terminal.Gui.Color.Red,
+                13 => Terminal.Gui.Color.BrightYellow,
+                _ => Terminal.Gui.Color.Black
+            };
         }
 
     }
@@ -242,6 +257,11 @@ namespace Text_editor_E
                         {
                             continue;
                         }
+                        if(c == '\t')
+                        {
+                            posx += 4;
+                            continue;
+                        }
 
                         Move(posx, posy);
                         Driver.AddRune(c);
@@ -309,13 +329,14 @@ namespace Text_editor_E
         string file_type = "txt";
         Dictionary<string,Terminal.Gui.Color> Syntax = new Dictionary<string, Terminal.Gui.Color>();
         Modes modes = new Modes();
-        public text_editor(string text, string file_name, bool new_file)
+        public text_editor(string text, string file_name, bool new_file,Dictionary<string,Terminal.Gui.Color> syn)
         {
             this.full_text = text;
             this.file_name = file_name;
             this.new_file = new_file;
             charList = new List<char>(text.ToCharArray());
             charListVis = new List<char>(text.ToCharArray());
+            Syntax = syn;
 
         }
 
@@ -696,7 +717,7 @@ namespace Text_editor_E
                 }
                 else
                 {
-                    if (Syntax.TryGetValue(before[i], out Terminal.Gui.Color nnn))
+                    if (Syntax.TryGetValue(RemoveWhiteSpace(before[i]), out Terminal.Gui.Color nnn))
                     {
                         textView.AddText(new colordString(before[i], nnn));
                     }
@@ -708,40 +729,52 @@ namespace Text_editor_E
             }
             
         }
+        string RemoveWhiteSpace(string text)
+        {
+            string newText = "";
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] != ' ' && text[i] != '\n' && text[i] != '\r' || text[i] != '\t')
+                {
+                    newText += text[i];
+                }
+            }
+            return newText;
+        }
 
         public class Modes
         {
-            public void Write(string text, Dictionary<string, ConsoleColor> modual)
-            {
-                int line_num = 1;
-                Console.Clear();
-                Thread.Sleep(10);
-                List<string> colorizer_text = Tokenizer(text);
-                Console.Write(line_num + ".\t");
-                for (int i = 0; i < colorizer_text.Count; i++)
-                {
-                    Console.ResetColor();
-                    if (colorizer_text[i] == "\n")
-                    {
-                        line_num++;
-                        Console.Write("\n" + line_num + ".\t");
-                    }
-                    if (modual.ContainsKey(colorizer_text[i]))
-                    {
-                        Console.ForegroundColor = (modual[colorizer_text[i]]);
-                    }
-                    if (!(colorizer_text[i] == "\n"))
-                    {
-                        Console.Write(colorizer_text[i] + " ");
-                    }
+            //public void Write(string text, Dictionary<string, ConsoleColor> modual)
+            //{
+            //    int line_num = 1;
+            //    Console.Clear();
+            //    Thread.Sleep(10);
+            //    List<string> colorizer_text = Tokenizer(text);
+            //    Console.Write(line_num + ".\t");
+            //    for (int i = 0; i < colorizer_text.Count; i++)
+            //    {
+            //        Console.ResetColor();
+            //        if (colorizer_text[i] == "\n")
+            //        {
+            //            line_num++;
+            //            Console.Write("\n" + line_num + ".\t");
+            //        }
+            //        if (modual.ContainsKey(colorizer_text[i]))
+            //        {
+            //            Console.ForegroundColor = (modual[colorizer_text[i]]);
+            //        }
+            //        if (!(colorizer_text[i] == "\n"))
+            //        {
+            //            Console.Write(colorizer_text[i] + " ");
+            //        }
 
 
-                }
+            //    }
                 
-                Console.ResetColor();
-                Console.Out.Flush();
+            //    Console.ResetColor();
+            //    Console.Out.Flush();
 
-            }
+            //}
             public static List<string> Tokenizer(string input)
             {
                 List<string> words = new List<string>();
@@ -752,22 +785,37 @@ namespace Text_editor_E
                 {
                     if (input[i] == '\n')
                     {
-                        lines.Add(" ");
+                        lines.Add("");
                     }
                     else
-                        lines[lines.Count() - 1] += input[i];
+                        if (input[i] == '\r')
+                            { continue; }
+                        else
+                            lines[lines.Count() - 1] += input[i];
                 }
 
 
 
                 for (int i = 0; i < lines.Count(); i++)
                 {
-                    if (lines[i] == " ")
+                    if (lines[i] == "")
                     {
                         words.Add("\n");
                         continue;
                     }
-                    string[] tokens = lines[i].Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    List<string> tokens = new List<string>() { "" };
+
+                    for (int k = 0; k < lines[i].Count(); k++)
+                    {
+                        if (lines[i][k] == ' ')
+                        {
+                            tokens.Add("");
+                        }
+                        else
+                            tokens[tokens.Count() - 1] += lines[i][k];
+                    }
+
+
                     foreach (string line in tokens)
                     {
                         words.Add(line);
