@@ -9,11 +9,19 @@ using Terminal.Gui;
 using static Terminal.Gui.View;
 using System.Globalization;
 using System.IO.Pipes;
+using System.Xml;
 
 namespace Text_editor_E
 {
     class Program
     {
+
+
+        //static Dictionary<string, Terminal.Gui.Color> Colors = new Dictionary<string, Color>()
+        //{
+        //    "DarkBlue" : new Terminal.Gui.Color(1,1,1,255)
+
+        //};
         static void Main(string[] args)
         {
 
@@ -147,7 +155,6 @@ namespace Text_editor_E
                 11 => Terminal.Gui.Color.Brown,
                 12 => Terminal.Gui.Color.Red,
                 13 => Terminal.Gui.Color.BrightYellow,
-                
                 _ => Terminal.Gui.Color.Black
             };
         }
@@ -231,6 +238,7 @@ namespace Text_editor_E
             foreach (List<colordString> line in sections)
             {
                 int lineStartX = posx; // Store starting position to fill extra spaces later
+                bool newLine = false;
                 if (count < scroll)
                 {
                     count++;
@@ -243,7 +251,10 @@ namespace Text_editor_E
                     string text = section.getText();
 
                     Driver.SetAttribute(new Terminal.Gui.Attribute(color, Color.Gray));
-
+                    if(newLine)
+                    {
+                        Driver.SetAttribute(new Terminal.Gui.Attribute(color, Color.DarkGray));
+                    }
                     foreach (char c in text)
                     {
                         if (posx >= Bounds.Width + Bounds.X)
@@ -251,6 +262,8 @@ namespace Text_editor_E
                             // Move to the next line when reaching the width
                             posx = Bounds.X + 4;
                             posy++;
+                            Driver.SetAttribute(new Terminal.Gui.Attribute(color, Color.DarkGray));
+                            newLine = true;
                         }
                         if (posy >= Bounds.Height + Bounds.Y)
                         {
@@ -275,7 +288,7 @@ namespace Text_editor_E
                         posx++;
                     }
                 }
-
+                Driver.SetAttribute(new Terminal.Gui.Attribute(Color.Black, Color.Gray));
                 // Fill remaining space on the line with spaces to overwrite old content
                 while (posx < Bounds.Width + Bounds.X)
                 {
